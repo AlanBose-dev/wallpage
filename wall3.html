@@ -1,0 +1,2496 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Election Wall</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet" />
+    <style>
+      .tab-active {
+        background-color: #ec4899;
+        color: white;
+      }
+
+      /* Hide scrollbar but keep functionality */
+      .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+
+      .hide-scrollbar {
+        -ms-overflow-style: none; /* IE and Edge */
+        scrollbar-width: none; /* Firefox */
+      }
+
+      /* Canvas styles */
+      .canvas-container {
+        position: relative;
+        width: 100%;
+        height: calc(100vh - 80px); /* Adjusted for proper footer */
+        overflow: auto;
+        background: linear-gradient(
+          135deg,
+          #f0f9ff 0%,
+          #e0f2fe 50%,
+          #bae6fd 100%
+        );
+        cursor: crosshair;
+      }
+
+      .canvas {
+        position: relative;
+        width: 1080px;
+        height: 1080px;
+        background: linear-gradient(
+          135deg,
+          #dbeafe 0%,
+          #bfdbfe 50%,
+          #93c5fd 100%
+        );
+        transition: width 0.5s ease, height 0.5s ease, transform 0.3s ease;
+        margin: 0 auto;
+        transform-origin: center center;
+        box-shadow: 0 0 50px rgba(59, 130, 246, 0.2);
+      }
+
+      /* Center Indicator */
+      .center-indicator {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background-color: rgba(236, 72, 153, 0.5);
+        opacity: 0.3;
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      /* Posts on Canvas */
+      .post {
+        position: absolute;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 12px;
+        padding: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        max-width: 300px;
+        z-index: 2;
+        backdrop-filter: blur(10px);
+      }
+
+      .post:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+        z-index: 10;
+      }
+
+      .post-image {
+        width: 100%;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        display: block;
+      }
+
+      .post-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #1f2937;
+      }
+
+      .post-caption {
+        font-size: 0.9rem;
+        color: #6b7280;
+        margin-bottom: 10px;
+      }
+
+      .post-text {
+        font-size: 1rem;
+        color: #1f2937;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+
+      .post-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(0, 0, 0, 0.1);
+      }
+
+      .post-date {
+        font-size: 0.8rem;
+        color: #9ca3af;
+      }
+
+      .post-votes {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .vote-btn {
+        background: none;
+        border: none;
+        color: #9ca3af;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+      }
+
+      .vote-btn:hover {
+        color: #ec4899;
+      }
+
+      .vote-btn.active {
+        color: #ec4899;
+      }
+
+      /* Empty Wall Message */
+      .empty-wall-message {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: rgba(0, 0, 0, 0.5);
+        z-index: 1;
+      }
+
+      /* Post Placement Message */
+      .post-placement-message {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(255, 255, 255, 0.95);
+        border: 2px solid rgba(236, 72, 153, 0.5);
+        border-radius: 12px;
+        padding: 20px 30px;
+        z-index: 1000;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(10px);
+        color: #1f2937;
+      }
+
+      /* Settings Modal Styles */
+      .settings-option {
+        transition: all 0.2s ease;
+      }
+
+      .settings-option:hover {
+        background-color: rgba(236, 72, 153, 0.1);
+        transform: translateX(5px);
+      }
+
+      .settings-option.active {
+        background-color: rgba(236, 72, 153, 0.2);
+        border-left: 3px solid #ec4899;
+      }
+
+      /* Zoom Controls */
+      .zoom-controls {
+        position: fixed;
+        bottom: 100px;
+        right: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 30;
+      }
+
+      .zoom-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        color: #1f2937;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .zoom-btn:hover {
+        background: rgba(236, 72, 153, 0.2);
+      }
+
+      .zoom-level {
+        text-align: center;
+        font-size: 12px;
+        color: #1f2937;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 20px;
+        padding: 5px 10px;
+      }
+
+      /* Toast notification */
+      .toast {
+        position: fixed;
+        bottom: 120px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(31, 41, 55, 0.95);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        z-index: 2000;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .toast.show {
+        opacity: 1;
+      }
+
+      /* Error message */
+      .error-message {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(239, 68, 68, 0.95);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        z-index: 2000;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .error-message.show {
+        opacity: 1;
+      }
+
+      /* Dark theme styles */
+      body.dark-theme {
+        background: linear-gradient(
+          135deg,
+          #1a1a2e 0%,
+          #16213e 50%,
+          #0f3460 100%
+        );
+      }
+
+      body.dark-theme .canvas-container {
+        background: linear-gradient(
+          135deg,
+          #1a1a2e 0%,
+          #16213e 50%,
+          #0f3460 100%
+        );
+      }
+
+      body.dark-theme .canvas {
+        background: linear-gradient(
+          135deg,
+          #1e3a8a 0%,
+          #1e1b4b 50%,
+          #312e81 100%
+        );
+      }
+
+      body.dark-theme .post {
+        background: rgba(15, 23, 42, 0.95);
+        color: white;
+      }
+
+      body.dark-theme .post-title {
+        color: white;
+      }
+
+      body.dark-theme .post-caption {
+        color: #cbd5e1;
+      }
+
+      body.dark-theme .post-text {
+        color: white;
+      }
+
+      body.dark-theme .post-date {
+        color: #94a3b8;
+      }
+
+      body.dark-theme .zoom-btn {
+        background: rgba(15, 23, 42, 0.8);
+        color: white;
+      }
+
+      body.dark-theme .zoom-level {
+        background: rgba(15, 23, 42, 0.8);
+        color: white;
+      }
+
+      body.dark-theme .post-placement-message {
+        background: rgba(15, 23, 42, 0.95);
+        color: white;
+      }
+    </style>
+  </head>
+  <body
+    class="min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-slate-100 text-gray-900 flex flex-col font-sans">
+    <!-- TOP BAR -->
+    <header
+      class="w-full bg-white/80 backdrop-blur-lg border-b border-gray-200 p-4 text-center sticky top-0 z-30">
+      <div class="flex justify-between items-center">
+        <div class="flex items-center space-x-4">
+          <h1 class="text-xl font-bold tracking-wider">Election Wall</h1>
+          <div class="hidden md:flex items-center space-x-2 text-sm">
+            <span class="material-icons text-sm">public</span>
+            <span id="onlineCount">247 Online</span>
+          </div>
+        </div>
+        <div class="flex items-center space-x-4">
+          <div class="hidden md:flex items-center space-x-2 text-sm">
+            <span class="material-icons text-sm">schedule</span>
+            <span id="liveTime">12:00 PM</span>
+          </div>
+          <div class="hidden md:flex items-center space-x-2 text-sm">
+            <span class="material-icons text-sm">calendar_today</span>
+            <span id="currentDate">June 15, 2023</span>
+          </div>
+          <div class="flex items-center space-x-2 text-sm">
+            <span class="material-icons text-sm">post_add</span>
+            <span id="postCount">0 Posts</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN CONTENT - INFINITE CANVAS -->
+    <main class="flex-1 relative" id="posts">
+      <div class="canvas-container hide-scrollbar" id="canvasContainer">
+        <div class="canvas" id="canvas">
+          <div class="center-indicator"></div>
+
+          <!-- Empty Wall Message -->
+          <div class="empty-wall-message" id="emptyWallMessage">
+            <p class="text-lg mb-2">The wall is currently empty.</p>
+            <p>Click the 'Add' button below to make the first post!</p>
+          </div>
+
+          <!-- Posts will be dynamically added here -->
+        </div>
+      </div>
+    </main>
+
+    <!-- FOOTER WITH NAVIGATION -->
+    <footer
+      class="w-full bg-white/80 backdrop-blur-lg border-t border-gray-200 p-4">
+      <div class="flex justify-center">
+        <div
+          class="bg-gray-100/80 backdrop-blur-md rounded-xl px-6 py-3 flex justify-around items-center w-72 shadow-lg">
+          <!-- Home -->
+          <button
+            onclick="resetCanvasSize()"
+            class="flex flex-col items-center p-2 text-gray-600 hover:text-gray-900 transition-all">
+            <span class="material-icons">home</span>
+            <span class="text-xs">Home</span>
+          </button>
+
+          <!-- Add -->
+          <div class="relative flex flex-col items-center">
+            <button
+              id="addBtn"
+              onclick="toggleAddMenu(event)"
+              class="flex flex-col items-center p-2 text-gray-900 relative">
+              <span class="material-icons text-3xl">add_circle</span>
+              <span class="text-xs">Add</span>
+            </button>
+
+            <!-- Add Menu -->
+            <div id="addMenu" class="hidden absolute bottom-full mb-4 z-50">
+              <div
+                class="w-40 bg-white/90 backdrop-blur-md border border-gray-200 rounded-xl p-4 flex flex-row justify-around space-x-4 shadow-2xl">
+                <button
+                  onclick="preparePostPlacement('image')"
+                  class="flex flex-col items-center space-y-1 text-gray-900 hover:text-pink-500 transition-all">
+                  <span class="material-icons text-3xl">image</span>
+                  <span class="text-xs">Image</span>
+                </button>
+                <button
+                  onclick="preparePostPlacement('text')"
+                  class="flex flex-col items-center space-y-1 text-gray-900 hover:text-purple-500 transition-all">
+                  <span class="material-icons text-3xl">article</span>
+                  <span class="text-xs">Text</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Settings -->
+          <button
+            onclick="openSettingsModal()"
+            class="flex flex-col items-center p-2 text-gray-600 hover:text-gray-900 transition-all">
+            <span class="material-icons">settings</span>
+            <span class="text-xs">Settings</span>
+          </button>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Zoom Controls -->
+    <div class="zoom-controls">
+      <button onclick="zoomIn()" class="zoom-btn">
+        <span class="material-icons">add</span>
+      </button>
+      <div class="zoom-level" id="zoomLevel">100%</div>
+      <button onclick="zoomOut()" class="zoom-btn">
+        <span class="material-icons">remove</span>
+      </button>
+      <button onclick="resetZoom()" class="zoom-btn">
+        <span class="material-icons">refresh</span>
+      </button>
+    </div>
+
+    <!-- MODIFICATION: Revamped Image Post Modal with Preview and More Fields -->
+    <div
+      id="imageModal"
+      class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div
+        class="bg-white/90 backdrop-blur-lg border border-gray-200 rounded-xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <h2 class="text-2xl font-bold mb-4 text-center">Create Image Post</h2>
+        <div class="grid md:grid-cols-2 gap-6">
+          <!-- Left side: Image Upload and Preview -->
+          <div class="flex flex-col space-y-4">
+            <label
+              id="dropZone"
+              for="imageUploadInput"
+              class="relative flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-gray-400 rounded-lg cursor-pointer hover:bg-gray-50 transition-all">
+              <div id="uploadPlaceholder" class="text-center text-gray-500">
+                <span class="material-icons text-5xl">cloud_upload</span>
+                <p class="font-semibold">Click to upload or drag & drop</p>
+                <p class="text-xs">PNG, JPG, or GIF</p>
+              </div>
+              <img
+                id="imagePreview"
+                src=""
+                class="hidden absolute w-full h-full object-cover rounded-lg"
+                alt="Image Preview" />
+            </label>
+            <input
+              id="imageUploadInput"
+              type="file"
+              class="hidden"
+              accept="image/png, image/jpeg, image/gif" />
+          </div>
+
+          <!-- Right side: Form Fields -->
+          <div class="flex flex-col space-y-4">
+            <input
+              id="postTitleInput"
+              type="text"
+              placeholder="Post Title / Headline"
+              class="w-full p-3 rounded-lg bg-gray-50 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-400" />
+            <textarea
+              id="postCaptionInput"
+              placeholder="Write a caption..."
+              rows="4"
+              class="w-full p-3 rounded-lg bg-gray-50 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-400"></textarea>
+            <input
+              id="postAuthorInput"
+              type="text"
+              placeholder="Your Name (Optional, defaults to Anonymous)"
+              class="w-full p-3 rounded-lg bg-gray-50 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-400" />
+            <input
+              id="postTagsInput"
+              type="text"
+              placeholder="Tags (e.g. news, rally, candidate)"
+              class="w-full p-3 rounded-lg bg-gray-50 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-400" />
+          </div>
+        </div>
+        <div class="flex justify-end space-x-3 mt-6">
+          <button
+            onclick="closeModal('image')"
+            class="px-5 py-2 rounded-lg bg-gray-500 hover:bg-gray-600 text-white transition-all font-semibold">
+            Cancel
+          </button>
+          <button
+            id="postImageBtn"
+            onclick="prepareImagePost()"
+            class="px-5 py-2 rounded-lg bg-pink-500 hover:bg-pink-600 text-white transition-all font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
+            disabled>
+            Next
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEXT POST MODAL (With Typing and Writing Canvas) -->
+    <div
+      id="textModal"
+      class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div
+        class="bg-white/90 backdrop-blur-lg border border-gray-200 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <h2 class="text-2xl font-bold mb-4 text-center">Create Text Post</h2>
+
+        <!-- Tab Buttons -->
+        <div class="flex border-b border-gray-200 mb-4">
+          <button
+            id="typeTab"
+            onclick="switchTextMode('type')"
+            class="flex-1 py-2 rounded-t-lg font-semibold transition-colors tab-active">
+            Type
+          </button>
+          <button
+            id="writeTab"
+            onclick="switchTextMode('write')"
+            class="flex-1 py-2 rounded-t-lg font-semibold transition-colors">
+            Write
+          </button>
+        </div>
+
+        <!-- Content Area -->
+        <div class="flex-1 overflow-y-auto">
+          <!-- Typing Mode -->
+          <div id="typeMode">
+            <textarea
+              id="typedText"
+              placeholder="What's on your mind?"
+              rows="8"
+              class="w-full p-3 rounded-lg bg-gray-50 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-400"></textarea>
+          </div>
+          <!-- Writing Mode (Canvas) -->
+          <div id="writeMode" class="hidden">
+            <div class="relative">
+              <canvas
+                id="writingCanvas"
+                class="bg-gray-100 rounded-lg w-full"></canvas>
+              <button
+                onclick="clearCanvas()"
+                class="absolute top-2 right-2 px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white text-xs rounded-full">
+                Clear
+              </button>
+            </div>
+            <p class="text-xs text-center text-gray-500 mt-2">
+              Use your mouse or finger to write on the board.
+            </p>
+          </div>
+        </div>
+
+        <!-- Common Form Fields -->
+        <div class="grid md:grid-cols-2 gap-4 mt-4">
+          <input
+            id="textPostTitleInput"
+            type="text"
+            placeholder="Post Title / Headline"
+            class="w-full p-3 rounded-lg bg-gray-50 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-400" />
+          <input
+            id="textPostAuthorInput"
+            type="text"
+            placeholder="Your Name (Optional)"
+            class="w-full p-3 rounded-lg bg-gray-50 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-400" />
+        </div>
+        <input
+          id="textPostTagsInput"
+          type="text"
+          placeholder="Tags (e.g. politics, announcement)"
+          class="w-full p-3 mt-4 rounded-lg bg-gray-50 border border-gray-300 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-400" />
+
+        <!-- Action Buttons -->
+        <div class="flex justify-end space-x-3 mt-6">
+          <button
+            onclick="closeModal('text')"
+            class="px-5 py-2 rounded-lg bg-gray-500 hover:bg-gray-600 text-white transition-all font-semibold">
+            Cancel
+          </button>
+          <button
+            onclick="prepareTextPost()"
+            class="px-5 py-2 rounded-lg bg-purple-500 hover:bg-purple-600 text-white transition-all font-semibold">
+            Next
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DETAILED POST VIEW MODAL -->
+    <div
+      id="detailedPostModal"
+      class="hidden fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-opacity duration-300"
+      onclick="closeDetailedModal()">
+      <div
+        class="bg-white border border-gray-200 rounded-xl w-full max-w-5xl max-h-[90vh] flex flex-col md:flex-row overflow-hidden shadow-2xl"
+        onclick="event.stopPropagation()">
+        <!-- Content Display Section (Image or Text) -->
+        <div
+          class="w-full md:w-3/5 bg-gray-100 flex items-center justify-center relative">
+          <!-- For Image Posts -->
+          <img
+            id="detailedPostImage"
+            src=""
+            class="w-auto h-auto max-w-full max-h-full object-contain"
+            alt="Post detail" />
+          <!-- For Text Posts -->
+          <div
+            id="detailedPostTextContent"
+            class="p-8 text-gray-900 w-full h-full overflow-y-auto">
+            <!-- Content (typed or handwritten image) goes here -->
+          </div>
+        </div>
+
+        <!-- Details and Interaction Section -->
+        <div class="w-full md:w-2/5 flex flex-col bg-gray-50">
+          <!-- Header with Author Info -->
+          <div class="p-4 border-b border-gray-200">
+            <div class="flex items-center">
+              <div
+                id="detailedPostAvatar"
+                class="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mr-4"></div>
+              <div>
+                <h2
+                  id="detailedPostTitle"
+                  class="text-xl font-bold text-gray-900"></h2>
+                <p class="text-sm text-gray-600">
+                  by <span id="detailedPostAuthor" class="font-semibold"></span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Scrollable Content Area -->
+          <div class="flex-1 p-4 overflow-y-auto">
+            <p
+              id="detailedPostCaption"
+              class="text-gray-700 mb-4 whitespace-pre-wrap"></p>
+            <div id="detailedPostTags" class="flex flex-wrap gap-2 mb-6">
+              <!-- Tags will be inserted here -->
+            </div>
+
+            <!-- Stats and Actions -->
+            <div
+              class="flex justify-between items-center py-3 border-y border-gray-200">
+              <div class="flex items-center space-x-4 text-gray-600">
+                <span class="flex items-center"
+                  ><span class="material-icons text-lg mr-1">visibility</span>
+                  <span id="viewCount">0</span></span
+                >
+                <span class="flex items-center"
+                  ><span class="material-icons text-lg mr-1">favorite</span>
+                  <span id="likeCount">0</span></span
+                >
+              </div>
+              <div class="flex items-center space-x-2">
+                <button
+                  onclick="handleBookmark(this)"
+                  id="bookmarkBtn"
+                  class="p-2 rounded-full hover:bg-sky-100 text-sky-600 transition-colors">
+                  <span class="material-icons">bookmark</span>
+                </button>
+                <button
+                  onclick="handleShare()"
+                  class="p-2 rounded-full hover:bg-green-100 text-green-600 transition-colors">
+                  <span class="material-icons">share</span>
+                </button>
+                <button
+                  onclick="handleLike(this)"
+                  id="likeBtn"
+                  class="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-200 hover:bg-pink-100 transition-colors font-semibold">
+                  <span class="material-icons">favorite_border</span> Like
+                </button>
+              </div>
+            </div>
+
+            <!-- Comments Section -->
+            <div class="mt-4">
+              <h3 class="font-bold mb-2">Comments</h3>
+              <div
+                id="commentsList"
+                class="space-y-3 max-h-60 overflow-y-auto pr-2">
+                <!-- Comments will be inserted here -->
+              </div>
+              <div class="mt-4 flex gap-2">
+                <input
+                  type="text"
+                  id="commentInput"
+                  placeholder="Add a comment..."
+                  class="flex-1 p-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500" />
+                <button
+                  id="addCommentBtn"
+                  class="px-4 py-2 bg-pink-500 text-white rounded-lg font-semibold hover:bg-pink-600 transition-colors">
+                  Post
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS MODAL -->
+    <div
+      id="settingsModal"
+      class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div
+        class="bg-white/90 backdrop-blur-lg border border-gray-200 rounded-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-2xl font-bold">Settings</h2>
+          <button
+            onclick="closeSettingsModal()"
+            class="p-2 rounded-full hover:bg-gray-100 transition-colors">
+            <span class="material-icons">close</span>
+          </button>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-6">
+          <!-- Settings Menu -->
+          <div class="md:col-span-1">
+            <h3 class="text-lg font-semibold mb-4">Menu</h3>
+            <div class="space-y-2">
+              <button
+                onclick="showSettingsTab('general')"
+                class="settings-option active w-full text-left p-3 rounded-lg flex items-center space-x-3">
+                <span class="material-icons">settings</span>
+                <span>General</span>
+              </button>
+              <button
+                onclick="showSettingsTab('appearance')"
+                class="settings-option w-full text-left p-3 rounded-lg flex items-center space-x-3">
+                <span class="material-icons">palette</span>
+                <span>Appearance</span>
+              </button>
+              <button
+                onclick="showSettingsTab('wall')"
+                class="settings-option w-full text-left p-3 rounded-lg flex items-center space-x-3">
+                <span class="material-icons">dashboard</span>
+                <span>Wall Settings</span>
+              </button>
+              <button
+                onclick="showSettingsTab('privacy')"
+                class="settings-option w-full text-left p-3 rounded-lg flex items-center space-x-3">
+                <span class="material-icons">lock</span>
+                <span>Privacy</span>
+              </button>
+              <button
+                onclick="showSettingsTab('notifications')"
+                class="settings-option w-full text-left p-3 rounded-lg flex items-center space-x-3">
+                <span class="material-icons">notifications</span>
+                <span>Notifications</span>
+              </button>
+              <button
+                onclick="showSettingsTab('account')"
+                class="settings-option w-full text-left p-3 rounded-lg flex items-center space-x-3">
+                <span class="material-icons">account_circle</span>
+                <span>Account</span>
+              </button>
+              <button
+                onclick="showSettingsTab('data')"
+                class="settings-option w-full text-left p-3 rounded-lg flex items-center space-x-3">
+                <span class="material-icons">storage</span>
+                <span>Data & Storage</span>
+              </button>
+              <button
+                onclick="showSettingsTab('about')"
+                class="settings-option w-full text-left p-3 rounded-lg flex items-center space-x-3">
+                <span class="material-icons">info</span>
+                <span>About</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Settings Content -->
+          <div class="md:col-span-2">
+            <!-- General Settings -->
+            <div id="generalSettings" class="settings-content">
+              <h3 class="text-xl font-semibold mb-4">General Settings</h3>
+              <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="font-medium">Language</p>
+                    <p class="text-sm text-gray-500">
+                      Select your preferred language
+                    </p>
+                  </div>
+                  <select
+                    id="languageSelect"
+                    class="bg-white border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-400">
+                    <option value="en">English</option>
+                    <option value="es">Spanish</option>
+                    <option value="fr">French</option>
+                    <option value="de">German</option>
+                  </select>
+                </div>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="font-medium">Auto-save posts</p>
+                    <p class="text-sm text-gray-500">
+                      Automatically save drafts
+                    </p>
+                  </div>
+                  <label
+                    class="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      id="autoSaveToggle"
+                      class="sr-only peer"
+                      checked />
+                    <div
+                      class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+                  </label>
+                </div>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="font-medium">Show online count</p>
+                    <p class="text-sm text-gray-500">
+                      Display number of online users
+                    </p>
+                  </div>
+                  <label
+                    class="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      id="onlineCountToggle"
+                      class="sr-only peer"
+                      checked />
+                    <div
+                      class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Appearance Settings -->
+            <div id="appearanceSettings" class="settings-content hidden">
+              <h3 class="text-xl font-semibold mb-4">Appearance</h3>
+              <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="font-medium">Theme</p>
+                    <p class="text-sm text-gray-500">
+                      Choose light or dark theme
+                    </p>
+                  </div>
+                  <label
+                    class="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      id="darkModeToggle"
+                      class="sr-only peer" />
+                    <div
+                      class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+                  </label>
+                </div>
+                <div>
+                  <p class="font-medium mb-2">Wall Color Theme</p>
+                  <div class="grid grid-cols-3 gap-2">
+                    <button
+                      onclick="setWallTheme('light-blue')"
+                      class="p-3 rounded-lg bg-gradient-to-br from-blue-100 to-blue-200 hover:ring-2 hover:ring-blue-400 transition-all">
+                      <span class="text-xs">Sky Blue</span>
+                    </button>
+                    <button
+                      onclick="setWallTheme('light-purple')"
+                      class="p-3 rounded-lg bg-gradient-to-br from-purple-100 to-purple-200 hover:ring-2 hover:ring-purple-400 transition-all">
+                      <span class="text-xs">Lavender</span>
+                    </button>
+                    <button
+                      onclick="setWallTheme('light-green')"
+                      class="p-3 rounded-lg bg-gradient-to-br from-green-100 to-green-200 hover:ring-2 hover:ring-green-400 transition-all">
+                      <span class="text-xs">Mint Green</span>
+                    </button>
+                    <button
+                      onclick="setWallTheme('light-pink')"
+                      class="p-3 rounded-lg bg-gradient-to-br from-pink-100 to-pink-200 hover:ring-2 hover:ring-pink-400 transition-all">
+                      <span class="text-xs">Rose Pink</span>
+                    </button>
+                    <button
+                      onclick="setWallTheme('light-yellow')"
+                      class="p-3 rounded-lg bg-gradient-to-br from-yellow-100 to-yellow-200 hover:ring-2 hover:ring-yellow-400 transition-all">
+                      <span class="text-xs">Sunshine</span>
+                    </button>
+                    <button
+                      onclick="setWallTheme('light-gray')"
+                      class="p-3 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 hover:ring-2 hover:ring-gray-400 transition-all">
+                      <span class="text-xs">Pearl Gray</span>
+                    </button>
+                    <button
+                      onclick="setWallTheme('dark-blue')"
+                      class="p-3 rounded-lg bg-gradient-to-br from-blue-900 to-blue-700 hover:ring-2 hover:ring-blue-400 transition-all">
+                      <span class="text-xs text-white">Ocean Blue</span>
+                    </button>
+                    <button
+                      onclick="setWallTheme('dark-purple')"
+                      class="p-3 rounded-lg bg-gradient-to-br from-purple-900 to-purple-700 hover:ring-2 hover:ring-purple-400 transition-all">
+                      <span class="text-xs text-white">Royal Purple</span>
+                    </button>
+                    <button
+                      onclick="setWallTheme('dark-green')"
+                      class="p-3 rounded-lg bg-gradient-to-br from-green-900 to-green-700 hover:ring-2 hover:ring-green-400 transition-all">
+                      <span class="text-xs text-white">Forest Green</span>
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <p class="font-medium mb-2">Font Size</p>
+                  <input
+                    type="range"
+                    id="fontSizeSlider"
+                    min="12"
+                    max="20"
+                    value="16"
+                    class="w-full"
+                    onchange="updateFontSize(this.value)" />
+                  <div class="flex justify-between text-xs text-gray-500">
+                    <span>Small</span>
+                    <span>Large</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Wall Settings -->
+            <div id="wallSettings" class="settings-content hidden">
+              <h3 class="text-xl font-semibold mb-4">Wall Settings</h3>
+              <div class="space-y-4">
+                <div>
+                  <p class="font-medium mb-2">Default Wall Size</p>
+                  <div class="flex items-center space-x-2">
+                    <input
+                      type="number"
+                      id="defaultWidthInput"
+                      value="1080"
+                      class="bg-white border border-gray-300 rounded-lg px-3 py-2 w-24 focus:outline-none focus:ring-2 focus:ring-pink-400" />
+                    <span>×</span>
+                    <input
+                      type="number"
+                      id="defaultHeightInput"
+                      value="1080"
+                      class="bg-white border border-gray-300 rounded-lg px-3 py-2 w-24 focus:outline-none focus:ring-2 focus:ring-pink-400" />
+                    <span>px</span>
+                  </div>
+                </div>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="font-medium">Auto-expand on scroll</p>
+                    <p class="text-sm text-gray-500">
+                      Automatically expand wall when scrolling to edges
+                    </p>
+                  </div>
+                  <label
+                    class="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      id="autoExpandToggle"
+                      class="sr-only peer"
+                      checked />
+                    <div
+                      class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+                  </label>
+                </div>
+                <div>
+                  <p class="font-medium mb-2">Expansion Amount</p>
+                  <input
+                    type="range"
+                    id="expansionAmountSlider"
+                    min="100"
+                    max="500"
+                    value="200"
+                    class="w-full"
+                    onchange="updateExpansionAmount(this.value)" />
+                  <div class="flex justify-between text-xs text-gray-500">
+                    <span>100px</span>
+                    <span>500px</span>
+                  </div>
+                </div>
+                <div>
+                  <p class="font-medium mb-2">Zoom Speed</p>
+                  <input
+                    type="range"
+                    id="zoomSpeedSlider"
+                    min="1"
+                    max="10"
+                    value="5"
+                    class="w-full"
+                    onchange="updateZoomSpeed(this.value)" />
+                  <div class="flex justify-between text-xs text-gray-500">
+                    <span>Slow</span>
+                    <span>Fast</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Privacy Settings -->
+            <div id="privacySettings" class="settings-content hidden">
+              <h3 class="text-xl font-semibold mb-4">Privacy</h3>
+              <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="font-medium">Private Profile</p>
+                    <p class="text-sm text-gray-500">
+                      Only approved followers can see your posts
+                    </p>
+                  </div>
+                  <label
+                    class="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      id="privateProfileToggle"
+                      class="sr-only peer" />
+                    <div
+                      class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+                  </label>
+                </div>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="font-medium">Show Activity Status</p>
+                    <p class="text-sm text-gray-500">
+                      Let others see when you're online
+                    </p>
+                  </div>
+                  <label
+                    class="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      id="activityStatusToggle"
+                      class="sr-only peer"
+                      checked />
+                    <div
+                      class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Notification Settings -->
+            <div id="notificationsSettings" class="settings-content hidden">
+              <h3 class="text-xl font-semibold mb-4">Notifications</h3>
+              <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="font-medium">Push Notifications</p>
+                    <p class="text-sm text-gray-500">
+                      Receive notifications on your device
+                    </p>
+                  </div>
+                  <label
+                    class="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      id="pushNotificationsToggle"
+                      class="sr-only peer"
+                      checked />
+                    <div
+                      class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+                  </label>
+                </div>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="font-medium">Email Notifications</p>
+                    <p class="text-sm text-gray-500">
+                      Receive notifications via email
+                    </p>
+                  </div>
+                  <label
+                    class="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      id="emailNotificationsToggle"
+                      class="sr-only peer" />
+                    <div
+                      class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+                  </label>
+                </div>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="font-medium">Likes</p>
+                    <p class="text-sm text-gray-500">
+                      Notify when someone likes your post
+                    </p>
+                  </div>
+                  <label
+                    class="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      id="likesNotificationsToggle"
+                      class="sr-only peer"
+                      checked />
+                    <div
+                      class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+                  </label>
+                </div>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="font-medium">Comments</p>
+                    <p class="text-sm text-gray-500">
+                      Notify when someone comments on your post
+                    </p>
+                  </div>
+                  <label
+                    class="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      id="commentsNotificationsToggle"
+                      class="sr-only peer"
+                      checked />
+                    <div
+                      class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Account Settings -->
+            <div id="accountSettings" class="settings-content hidden">
+              <h3 class="text-xl font-semibold mb-4">Account</h3>
+              <div class="space-y-4">
+                <div>
+                  <p class="font-medium mb-2">Username</p>
+                  <input
+                    type="text"
+                    id="usernameInput"
+                    value="user123"
+                    class="bg-white border border-gray-300 rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-pink-400" />
+                </div>
+                <div>
+                  <p class="font-medium mb-2">Email</p>
+                  <input
+                    type="email"
+                    id="emailInput"
+                    value="user@example.com"
+                    class="bg-white border border-gray-300 rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-pink-400" />
+                </div>
+                <div>
+                  <p class="font-medium mb-2">Password</p>
+                  <button
+                    class="bg-white border border-gray-300 rounded-lg px-3 py-2 w-full text-left hover:bg-gray-50 transition-colors">
+                    Change Password
+                  </button>
+                </div>
+                <div>
+                  <p class="font-medium mb-2">Two-Factor Authentication</p>
+                  <button
+                    class="bg-white border border-gray-300 rounded-lg px-3 py-2 w-full text-left hover:bg-gray-50 transition-colors">
+                    Enable 2FA
+                  </button>
+                </div>
+                <div class="pt-4 border-t border-gray-200">
+                  <button
+                    class="bg-red-500 hover:bg-red-600 text-white rounded-lg px-4 py-2 transition-colors">
+                    Delete Account
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Data & Storage Settings -->
+            <div id="dataSettings" class="settings-content hidden">
+              <h3 class="text-xl font-semibold mb-4">Data & Storage</h3>
+              <div class="space-y-4">
+                <div>
+                  <p class="font-medium mb-2">Storage Used</p>
+                  <div class="bg-gray-100 rounded-lg p-4">
+                    <div class="flex justify-between mb-2">
+                      <span>Images</span>
+                      <span id="imageStorage">0 MB</span>
+                    </div>
+                    <div class="flex justify-between mb-2">
+                      <span>Text Posts</span>
+                      <span id="textStorage">0 MB</span>
+                    </div>
+                    <div class="flex justify-between mb-2">
+                      <span>Cache</span>
+                      <span id="cacheStorage">0.5 MB</span>
+                    </div>
+                    <div class="flex justify-between font-semibold">
+                      <span>Total</span>
+                      <span id="totalStorage">0.5 MB / 5 GB</span>
+                    </div>
+                    <div class="w-full bg-gray-300 rounded-full h-2 mt-2">
+                      <div
+                        id="storageBar"
+                        class="bg-pink-500 h-2 rounded-full"
+                        style="width: 1%"></div>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <button
+                    onclick="clearCache()"
+                    class="bg-white border border-gray-300 rounded-lg px-4 py-2 w-full hover:bg-gray-50 transition-colors">
+                    Clear Cache
+                  </button>
+                </div>
+                <div>
+                  <button
+                    onclick="downloadData()"
+                    class="bg-white border border-gray-300 rounded-lg px-4 py-2 w-full hover:bg-gray-50 transition-colors">
+                    Download My Data
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- About Settings -->
+            <div id="aboutSettings" class="settings-content hidden">
+              <h3 class="text-xl font-semibold mb-4">About</h3>
+              <div class="space-y-4">
+                <div class="bg-gray-100 rounded-lg p-4">
+                  <div class="flex justify-between mb-2">
+                    <span>Version</span>
+                    <span>1.0.0</span>
+                  </div>
+                  <div class="flex justify-between mb-2">
+                    <span>Last Updated</span>
+                    <span id="lastUpdated">June 15, 2023</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span>Developer</span>
+                    <span>Election Wall Team</span>
+                  </div>
+                </div>
+                <div>
+                  <button
+                    onclick="checkForUpdates()"
+                    class="bg-white border border-gray-300 rounded-lg px-4 py-2 w-full hover:bg-gray-50 transition-colors">
+                    Check for Updates
+                  </button>
+                </div>
+                <div>
+                  <button
+                    onclick="showTerms()"
+                    class="bg-white border border-gray-300 rounded-lg px-4 py-2 w-full hover:bg-gray-50 transition-colors">
+                    Terms of Service
+                  </button>
+                </div>
+                <div>
+                  <button
+                    onclick="showPrivacyPolicy()"
+                    class="bg-white border border-gray-300 rounded-lg px-4 py-2 w-full hover:bg-gray-50 transition-colors">
+                    Privacy Policy
+                  </button>
+                </div>
+                <div>
+                  <button
+                    onclick="contactSupport()"
+                    class="bg-white border border-gray-300 rounded-lg px-4 py-2 w-full hover:bg-gray-50 transition-colors">
+                    Contact Support
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end mt-6">
+          <button
+            onclick="saveSettings()"
+            class="px-5 py-2 rounded-lg bg-pink-500 hover:bg-pink-600 text-white transition-all font-semibold">
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script>
+      // --- DATABASE & STATE MANAGEMENT ---
+      let postsData = [];
+      let pendingPost = null;
+      let currentZoom = 1;
+      let zoomSpeed = 5;
+      let isPlacingPost = false;
+      let settings = {
+        language: "en",
+        autoSave: true,
+        showOnlineCount: true,
+        darkMode: false,
+        themeColor: "#ec4899",
+        fontSize: 16,
+        defaultWidth: 1080,
+        defaultHeight: 1080,
+        autoExpand: true,
+        expansionAmount: 200,
+        zoomSpeed: 5,
+        privateProfile: false,
+        showActivityStatus: true,
+        pushNotifications: true,
+        emailNotifications: false,
+        likesNotifications: true,
+        commentsNotifications: true,
+        username: "user123",
+        email: "user@example.com",
+        wallTheme: "light-blue",
+      };
+
+      // --- DOM ELEMENT REFERENCES ---
+      const addMenu = document.getElementById("addMenu");
+      const canvas = document.getElementById("canvas");
+      const canvasContainer = document.getElementById("canvasContainer");
+      const emptyWallMessage = document.getElementById("emptyWallMessage");
+      const detailedPostModal = document.getElementById("detailedPostModal");
+
+      // Image Modal Elements
+      const dropZone = document.getElementById("dropZone");
+      const imageUploadInput = document.getElementById("imageUploadInput");
+      const imagePreview = document.getElementById("imagePreview");
+      const uploadPlaceholder = document.getElementById("uploadPlaceholder");
+      const postImageBtn = document.getElementById("postImageBtn");
+
+      // Text Modal Elements
+      const writingCanvas = document.getElementById("writingCanvas");
+      const ctx = writingCanvas.getContext("2d");
+      let isDrawing = false;
+      let currentTextMode = "type"; // 'type' or 'write'
+
+      // Infinite Canvas State
+      let canvasWidth = 1080; // Initial width in pixels
+      let canvasHeight = 1080; // Initial height in pixels
+      let expansionThreshold = 80; // percentage from edge to trigger expansion
+      let expansionAmount = 200; // Amount to expand in pixels
+
+      // --- INFINITE CANVAS FUNCTIONALITY ---
+
+      // Handle canvas scrolling
+      function handleScroll() {
+        const {
+          scrollLeft,
+          scrollTop,
+          scrollWidth,
+          scrollHeight,
+          clientWidth,
+          clientHeight,
+        } = canvasContainer;
+
+        // Calculate scroll position as percentage
+        const scrollLeftPercent =
+          (scrollLeft / (scrollWidth - clientWidth)) * 100;
+        const scrollTopPercent =
+          (scrollTop / (scrollHeight - clientHeight)) * 100;
+
+        // Auto-expand when reaching the edge
+        if (settings.autoExpand) {
+          if (scrollTopPercent < 5) {
+            expandCanvas("top");
+          } else if (scrollLeftPercent > 95) {
+            expandCanvas("right");
+          } else if (scrollTopPercent > 95) {
+            expandCanvas("bottom");
+          } else if (scrollLeftPercent < 5) {
+            expandCanvas("left");
+          }
+        }
+      }
+
+      // Expand canvas in the specified direction
+      function expandCanvas(direction) {
+        const currentScrollLeft = canvasContainer.scrollLeft;
+        const currentScrollTop = canvasContainer.scrollTop;
+
+        switch (direction) {
+          case "top":
+            canvasHeight += expansionAmount;
+            canvas.style.height = `${canvasHeight}px`;
+            // Adjust scroll position to maintain view
+            canvasContainer.scrollTop = currentScrollTop + expansionAmount;
+            break;
+          case "right":
+            canvasWidth += expansionAmount;
+            canvas.style.width = `${canvasWidth}px`;
+            break;
+          case "bottom":
+            canvasHeight += expansionAmount;
+            canvas.style.height = `${canvasHeight}px`;
+            break;
+          case "left":
+            canvasWidth += expansionAmount;
+            canvas.style.width = `${canvasWidth}px`;
+            // Adjust scroll position to maintain view
+            canvasContainer.scrollLeft = currentScrollLeft + expansionAmount;
+            break;
+        }
+
+        showToast(`Wall expanded to the ${direction}`);
+      }
+
+      // Reset canvas to initial size
+      function resetCanvasSize() {
+        canvasWidth = settings.defaultWidth;
+        canvasHeight = settings.defaultHeight;
+        canvas.style.width = `${canvasWidth}px`;
+        canvas.style.height = `${canvasHeight}px`;
+
+        // Reset zoom
+        currentZoom = 1;
+        updateZoomLevel();
+
+        // Center the canvas
+        canvasContainer.scrollTo({
+          left: (canvasWidth - canvasContainer.clientWidth) / 2,
+          top: (canvasHeight - canvasContainer.clientHeight) / 2,
+          behavior: "smooth",
+        });
+
+        showToast("Wall reset to default size");
+      }
+
+      // --- ZOOM FUNCTIONALITY ---
+
+      function zoomIn() {
+        if (currentZoom < 3) {
+          currentZoom += 0.1;
+          updateZoomLevel();
+        }
+      }
+
+      function zoomOut() {
+        if (currentZoom > 0.5) {
+          currentZoom -= 0.1;
+          updateZoomLevel();
+        }
+      }
+
+      function resetZoom() {
+        currentZoom = 1;
+        updateZoomLevel();
+      }
+
+      function updateZoomLevel() {
+        canvas.style.transform = `scale(${currentZoom})`;
+        document.getElementById("zoomLevel").textContent = `${Math.round(
+          currentZoom * 100
+        )}%`;
+      }
+
+      // Handle mouse wheel zoom
+      function handleWheel(e) {
+        if (e.ctrlKey) {
+          e.preventDefault();
+          const delta = e.deltaY > 0 ? -1 : 1;
+          const zoomChange = delta * (settings.zoomSpeed / 100);
+
+          if (
+            (currentZoom > 0.5 || zoomChange > 0) &&
+            (currentZoom < 3 || zoomChange < 0)
+          ) {
+            currentZoom += zoomChange;
+            updateZoomLevel();
+          }
+        }
+      }
+
+      // --- POST PLACEMENT FUNCTIONALITY ---
+
+      function preparePostPlacement(type) {
+        pendingPost = { type };
+        addMenu.classList.add("hidden");
+
+        if (type === "image") {
+          openModal("image");
+        } else if (type === "text") {
+          openModal("text");
+        }
+      }
+
+      function prepareImagePost() {
+        const title =
+          document.getElementById("postTitleInput").value || "Untitled";
+        const caption = document.getElementById("postCaptionInput").value;
+        const author =
+          document.getElementById("postAuthorInput").value || "Anonymous";
+        const tags = document
+          .getElementById("postTagsInput")
+          .value.split(",")
+          .map((tag) => tag.trim())
+          .filter((tag) => tag);
+        const image = imagePreview.src;
+
+        if (!image) {
+          showToast("Please select an image");
+          return;
+        }
+
+        pendingPost = {
+          ...pendingPost,
+          title,
+          caption,
+          author,
+          tags,
+          image,
+        };
+
+        closeModal("image");
+        showPostPlacementMessage();
+      }
+
+      function prepareTextPost() {
+        const title =
+          document.getElementById("textPostTitleInput").value ||
+          "Untitled Note";
+        const author =
+          document.getElementById("textPostAuthorInput").value || "Anonymous";
+        const tags = document
+          .getElementById("textPostTagsInput")
+          .value.split(",")
+          .map((tag) => tag.trim())
+          .filter((tag) => tag);
+
+        let content = "";
+        let handwritingData = null;
+
+        if (currentTextMode === "type") {
+          content = document.getElementById("typedText").value;
+        } else {
+          // 'write' mode
+          handwritingData = writingCanvas.toDataURL("image/png");
+          content = "[Handwritten Note]"; // Add a placeholder caption
+        }
+
+        if (!content && !handwritingData) {
+          showToast("Please enter some text or write on the canvas");
+          return;
+        }
+
+        pendingPost = {
+          ...pendingPost,
+          title,
+          content,
+          author,
+          tags,
+          handwritingData,
+        };
+
+        closeModal("text");
+        showPostPlacementMessage();
+      }
+
+      function showPostPlacementMessage() {
+        const message = document.createElement("div");
+        message.className = "post-placement-message";
+        message.innerHTML = `
+          <h3 class="text-xl font-bold mb-2">Click on the wall to attach your poster</h3>
+          <p class="text-gray-600">Your post will be placed where you click on the wall</p>
+        `;
+        document.body.appendChild(message);
+
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+          if (message.parentNode) {
+            message.remove();
+          }
+          if (!isPlacingPost) {
+            cancelPostPlacement();
+          }
+        }, 3000);
+
+        // Add click event to canvas for post placement
+        canvas.addEventListener("click", placePost);
+        canvasContainer.style.cursor = "crosshair";
+        isPlacingPost = true;
+      }
+
+      function cancelPostPlacement() {
+        const message = document.querySelector(".post-placement-message");
+        if (message) {
+          message.remove();
+        }
+        canvasContainer.style.cursor = "default";
+        pendingPost = null;
+        isPlacingPost = false;
+
+        // Remove click event from canvas
+        canvas.removeEventListener("click", placePost);
+      }
+
+      function placePost(e) {
+        if (!pendingPost || !isPlacingPost) return;
+
+        // Get click position relative to canvas
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / currentZoom;
+        const y = (e.clientY - rect.top) / currentZoom;
+
+        // Check if clicking on existing post
+        const clickedPost = getPostAtPosition(x, y);
+        if (clickedPost) {
+          showError("Cannot place post on top of another post!");
+          return;
+        }
+
+        // Create post
+        const newPostId =
+          pendingPost.type === "image"
+            ? "post_img_" + Date.now()
+            : "post_txt_" + Date.now();
+        const postData = {
+          id: newPostId,
+          type: pendingPost.type,
+          title: pendingPost.title,
+          caption: pendingPost.content || pendingPost.caption,
+          author: pendingPost.author,
+          tags: pendingPost.tags,
+          image: pendingPost.image,
+          handwritingData: pendingPost.handwritingData,
+          timestamp: new Date(),
+          views: 0,
+          likes: 0,
+          isLiked: false,
+          isBookmarked: false,
+          comments: [],
+          position: { x: x - 150, y: y - 100 }, // Center the post on click position
+        };
+
+        postsData.unshift(postData);
+        renderPosts();
+        updatePostCount();
+
+        // Clean up
+        cancelPostPlacement();
+        showToast("Post added successfully!");
+      }
+
+      function getPostAtPosition(x, y) {
+        for (const post of postsData) {
+          const postLeft = post.position.x;
+          const postRight = post.position.x + 300; // Approximate post width
+          const postTop = post.position.y;
+          const postBottom = post.position.y + 200; // Approximate post height
+
+          if (
+            x >= postLeft &&
+            x <= postRight &&
+            y >= postTop &&
+            y <= postBottom
+          ) {
+            return post;
+          }
+        }
+        return null;
+      }
+
+      function showError(message) {
+        const errorDiv = document.createElement("div");
+        errorDiv.className = "error-message";
+        errorDiv.textContent = message;
+        document.body.appendChild(errorDiv);
+
+        // Show the error
+        setTimeout(() => {
+          errorDiv.classList.add("show");
+        }, 10);
+
+        // Hide after 3 seconds
+        setTimeout(() => {
+          errorDiv.classList.remove("show");
+          setTimeout(() => {
+            errorDiv.remove();
+          }, 300);
+        }, 3000);
+      }
+
+      // --- CANVAS DRAWING LOGIC ---
+
+      function initializeCanvas() {
+        // Set canvas dimensions based on container width
+        const container = writingCanvas.parentElement;
+        writingCanvas.width = container.offsetWidth;
+        writingCanvas.height = 300; // Fixed height
+
+        // Set drawing styles
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = 3;
+        ctx.lineCap = "round";
+
+        // Event Listeners for Drawing
+        writingCanvas.addEventListener("mousedown", startDrawing);
+        writingCanvas.addEventListener("mouseup", stopDrawing);
+        writingCanvas.addEventListener("mouseleave", stopDrawing);
+        writingCanvas.addEventListener("mousemove", draw);
+
+        // Touch events for mobile
+        writingCanvas.addEventListener("touchstart", startDrawing);
+        writingCanvas.addEventListener("touchend", stopDrawing);
+        writingCanvas.addEventListener("touchmove", draw);
+      }
+
+      function startDrawing(e) {
+        e.preventDefault();
+        isDrawing = true;
+        const { x, y } = getEventCoordinates(e);
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+      }
+
+      function stopDrawing() {
+        isDrawing = false;
+        ctx.beginPath(); // Resets the current path
+      }
+
+      function draw(e) {
+        if (!isDrawing) return;
+        e.preventDefault();
+        const { x, y } = getEventCoordinates(e);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+      }
+
+      function getEventCoordinates(e) {
+        const rect = writingCanvas.getBoundingClientRect();
+        if (e.touches) {
+          // For touch events
+          return {
+            x: e.touches[0].clientX - rect.left,
+            y: e.touches[0].clientY - rect.top,
+          };
+        }
+        // For mouse events
+        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      }
+
+      function clearCanvas() {
+        ctx.clearRect(0, 0, writingCanvas.width, writingCanvas.height);
+      }
+
+      // --- HELPER & CORE FUNCTIONS ---
+
+      function createAvatar(name) {
+        const initials = name
+          .split(" ")
+          .map((n) => n[0])
+          .join("")
+          .substring(0, 2)
+          .toUpperCase();
+        let hash = 0;
+        for (let i = 0; i < name.length; i++)
+          hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        const color = `hsl(${hash % 360}, 50%, 60%)`;
+        return { initials, color };
+      }
+
+      function renderComments(postId) {
+        const post = postsData.find((p) => p.id === postId);
+        const commentsList = document.getElementById("commentsList");
+        commentsList.innerHTML = "";
+        if (post && post.comments.length > 0) {
+          post.comments.forEach((comment) => {
+            const commentEl = document.createElement("div");
+            commentEl.className = "bg-gray-100 p-2 rounded-lg text-sm";
+            commentEl.innerHTML = `<p class="font-semibold text-pink-500">${comment.author}</p><p class="text-gray-700">${comment.text}</p>`;
+            commentsList.appendChild(commentEl);
+          });
+        } else {
+          commentsList.innerHTML =
+            '<p class="text-gray-500 text-xs text-center">No comments yet.</p>';
+        }
+      }
+
+      function renderPosts() {
+        // Clear existing posts
+        const existingPosts = canvas.querySelectorAll(".post");
+        existingPosts.forEach((post) => post.remove());
+
+        if (postsData.length === 0) {
+          emptyWallMessage.style.display = "block";
+        } else {
+          emptyWallMessage.style.display = "none";
+          postsData.forEach((post) => {
+            createPostElement(post);
+          });
+        }
+      }
+
+      function createPostElement(post) {
+        const postElement = document.createElement("div");
+        postElement.className = "post";
+        postElement.id = post.id;
+        postElement.style.left = `${post.position.x}px`;
+        postElement.style.top = `${post.position.y}px`;
+        postElement.setAttribute("onclick", `openDetailedView('${post.id}')`);
+
+        let postContent = "";
+
+        if (post.type === "image") {
+          postContent = `
+            <img src="${post.image}" alt="${post.title}" class="post-image">
+            <h3 class="post-title">${post.title}</h3>
+            <p class="post-caption">${post.caption}</p>
+          `;
+        } else {
+          // 'text' post type
+          if (post.handwritingData) {
+            postContent = `
+              <h3 class="post-title">${post.title}</h3>
+              <img src="${post.handwritingData}" alt="Handwritten post" class="post-image" />
+            `;
+          } else {
+            postContent = `
+              <h3 class="post-title">${post.title}</h3>
+              <p class="post-text">${post.caption}</p>
+            `;
+          }
+        }
+
+        const voteCount = post.likes || 0;
+        const hasLiked = post.isLiked || false;
+
+        postElement.innerHTML = `
+          ${postContent}
+          <div class="post-footer">
+            <span class="post-date">${formatDate(post.timestamp)}</span>
+            <div class="post-votes">
+              <button class="vote-btn ${
+                hasLiked ? "active" : ""
+              }" onclick="event.stopPropagation(); handlePostVote('${
+          post.id
+        }')">
+                <span class="material-icons">favorite</span>
+              </button>
+              <span>${voteCount}</span>
+            </div>
+          </div>
+        `;
+
+        canvas.appendChild(postElement);
+      }
+
+      function openDetailedView(postId) {
+        const post = postsData.find((p) => p.id === postId);
+        if (!post) return;
+        post.views++;
+
+        // --- Populate Modal Content ---
+        const imageContent = document.getElementById("detailedPostImage");
+        const textContent = document.getElementById("detailedPostTextContent");
+
+        // Reset view
+        imageContent.classList.add("hidden");
+        textContent.classList.add("hidden");
+
+        if (post.type === "image") {
+          imageContent.src = post.image;
+          imageContent.classList.remove("hidden");
+        } else {
+          // 'text' post
+          textContent.classList.remove("hidden");
+          if (post.handwritingData) {
+            // Check if it's a handwritten post
+            textContent.innerHTML = `<img src="${post.handwritingData}" alt="Handwritten post" class="max-w-full mx-auto" />`;
+          } else {
+            textContent.innerHTML = `<p class="text-2xl whitespace-pre-wrap">${post.caption}</p>`;
+          }
+        }
+
+        // Populate common fields (author, title, stats, etc.)
+        const avatar = createAvatar(post.author);
+        const avatarEl = document.getElementById("detailedPostAvatar");
+        avatarEl.style.backgroundColor = avatar.color;
+        avatarEl.textContent = avatar.initials;
+
+        document.getElementById("detailedPostTitle").textContent = post.title;
+        document.getElementById("detailedPostAuthor").textContent = post.author;
+        document.getElementById("detailedPostCaption").textContent =
+          post.caption;
+
+        const tagsContainer = document.getElementById("detailedPostTags");
+        tagsContainer.innerHTML = "";
+        post.tags.forEach((tag) => {
+          const tagElement = document.createElement("span");
+          tagElement.className =
+            "bg-gray-200 text-gray-700 text-xs font-semibold px-2.5 py-1 rounded-full";
+          tagElement.textContent = tag;
+          tagsContainer.appendChild(tagElement);
+        });
+
+        document.getElementById("viewCount").textContent = post.views;
+        document.getElementById("likeCount").textContent = post.likes;
+
+        const likeBtn = document.getElementById("likeBtn");
+        likeBtn.dataset.postId = postId;
+        likeBtn.innerHTML = post.isLiked
+          ? `<span class="material-icons">favorite</span> Liked`
+          : `<span class="material-icons">favorite_border</span> Like`;
+        likeBtn.classList.toggle("bg-pink-100", post.isLiked);
+        likeBtn.classList.toggle("bg-gray-200", !post.isLiked);
+
+        const bookmarkBtn = document.getElementById("bookmarkBtn");
+        bookmarkBtn.dataset.postId = postId;
+        bookmarkBtn.innerHTML = `<span class="material-icons">${
+          post.isBookmarked ? "bookmark" : "bookmark_border"
+        }</span>`;
+        bookmarkBtn.classList.toggle("bg-sky-100", post.isBookmarked);
+
+        renderComments(postId);
+        document.getElementById("addCommentBtn").onclick = () =>
+          handleAddComment(postId);
+
+        detailedPostModal.classList.remove("hidden");
+      }
+
+      function closeDetailedModal() {
+        detailedPostModal.classList.add("hidden");
+      }
+
+      // --- EVENT HANDLERS & POST CREATION ---
+
+      function handleLike(buttonEl) {
+        const postId = buttonEl.dataset.postId;
+        const post = postsData.find((p) => p.id === postId);
+        if (!post) return;
+        post.isLiked = !post.isLiked;
+        post.likes += post.isLiked ? 1 : -1;
+        document.getElementById("likeCount").textContent = post.likes;
+        buttonEl.innerHTML = post.isLiked
+          ? `<span class="material-icons">favorite</span> Liked`
+          : `<span class="material-icons">favorite_border</span> Like`;
+        buttonEl.classList.toggle("bg-pink-100", post.isLiked);
+        buttonEl.classList.toggle("bg-gray-200", !post.isLiked);
+      }
+
+      function handlePostVote(postId) {
+        const post = postsData.find((p) => p.id === postId);
+        if (!post) return;
+        post.isLiked = !post.isLiked;
+        post.likes += post.isLiked ? 1 : -1;
+
+        // Update UI
+        const postElement = document.getElementById(postId);
+        const voteBtn = postElement.querySelector(".vote-btn");
+        const voteCount = postElement.querySelector(".post-votes span");
+
+        voteBtn.classList.toggle("active", post.isLiked);
+        voteCount.textContent = post.likes;
+      }
+
+      function handleBookmark(buttonEl) {
+        const postId = buttonEl.dataset.postId;
+        const post = postsData.find((p) => p.id === postId);
+        if (!post) return;
+        post.isBookmarked = !post.isBookmarked;
+        buttonEl.innerHTML = `<span class="material-icons">${
+          post.isBookmarked ? "bookmark" : "bookmark_border"
+        }</span>`;
+        buttonEl.classList.toggle("bg-sky-100", post.isBookmarked);
+      }
+      function handleShare() {
+        showToast("Share functionality coming soon!");
+      }
+      function handleAddComment(postId) {
+        const commentInput = document.getElementById("commentInput");
+        const text = commentInput.value.trim();
+        if (text === "") return;
+        const post = postsData.find((p) => p.id === postId);
+        if (post) {
+          post.comments.unshift({ author: settings.username, text: text });
+          commentInput.value = "";
+          renderComments(postId);
+        }
+      }
+
+      // --- MODAL & MENU CONTROLS ---
+
+      function switchTextMode(mode) {
+        currentTextMode = mode;
+        const typeMode = document.getElementById("typeMode");
+        const writeMode = document.getElementById("writeMode");
+        const typeTab = document.getElementById("typeTab");
+        const writeTab = document.getElementById("writeTab");
+
+        if (mode === "type") {
+          typeMode.classList.remove("hidden");
+          writeMode.classList.add("hidden");
+          typeTab.classList.add("tab-active");
+          writeTab.classList.remove("tab-active");
+        } else {
+          typeMode.classList.add("hidden");
+          writeMode.classList.remove("hidden");
+          typeTab.classList.remove("tab-active");
+          writeTab.classList.add("tab-active");
+        }
+      }
+
+      function toggleAddMenu(event) {
+        event.stopPropagation();
+        addMenu.classList.toggle("hidden");
+      }
+      function openModal(type) {
+        addMenu.classList.add("hidden");
+        document.getElementById(type + "Modal").classList.add("flex");
+        document.getElementById(type + "Modal").classList.remove("hidden");
+        if (type === "text") {
+          initializeCanvas();
+        }
+      }
+      function closeModal(type) {
+        document.getElementById(type + "Modal").classList.remove("flex");
+        document.getElementById(type + "Modal").classList.add("hidden");
+        if (type === "image") {
+          resetImageModal();
+        } else if (type === "text") {
+          resetTextModal();
+        }
+      }
+      window.addEventListener("click", () => {
+        if (!addMenu.classList.contains("hidden")) {
+          addMenu.classList.add("hidden");
+        }
+      });
+
+      // --- FORM RESET FUNCTIONS ---
+      function resetImageModal() {
+        imageUploadInput.value = "";
+        document.getElementById("postTitleInput").value = "";
+        document.getElementById("postCaptionInput").value = "";
+        document.getElementById("postAuthorInput").value = "";
+        document.getElementById("postTagsInput").value = "";
+        imagePreview.src = "";
+        imagePreview.classList.add("hidden");
+        uploadPlaceholder.classList.remove("hidden");
+        postImageBtn.disabled = true;
+      }
+
+      function resetTextModal() {
+        document.getElementById("typedText").value = "";
+        document.getElementById("textPostTitleInput").value = "";
+        document.getElementById("textPostAuthorInput").value = "";
+        document.getElementById("textPostTagsInput").value = "";
+        clearCanvas();
+        switchTextMode("type"); // Reset to default tab
+      }
+
+      // --- IMAGE MODAL LOGIC ---
+      imageUploadInput.addEventListener("change", handleFileSelect);
+      dropZone.addEventListener("dragover", handleDragOver);
+      dropZone.addEventListener("dragleave", handleDragLeave);
+      dropZone.addEventListener("drop", handleDrop);
+      function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (file) processFile(file);
+      }
+      function handleDragOver(event) {
+        event.preventDefault();
+        dropZone.classList.add("bg-gray-50", "border-pink-400");
+      }
+      function handleDragLeave(event) {
+        event.preventDefault();
+        dropZone.classList.remove("bg-gray-50", "border-pink-400");
+      }
+      function handleDrop(event) {
+        event.preventDefault();
+        dropZone.classList.remove("bg-gray-50", "border-pink-400");
+        const file = event.dataTransfer.files[0];
+        if (file) processFile(file);
+      }
+      function processFile(file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          imagePreview.src = e.target.result;
+          imagePreview.classList.remove("hidden");
+          uploadPlaceholder.classList.add("hidden");
+          postImageBtn.disabled = false;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      // --- SETTINGS MODAL FUNCTIONS ---
+      function openSettingsModal() {
+        document.getElementById("settingsModal").classList.remove("hidden");
+        showSettingsTab("general");
+        loadSettingsToUI();
+      }
+
+      function closeSettingsModal() {
+        document.getElementById("settingsModal").classList.add("hidden");
+      }
+
+      function showSettingsTab(tabName) {
+        // Hide all settings content
+        document.querySelectorAll(".settings-content").forEach((content) => {
+          content.classList.add("hidden");
+        });
+
+        // Remove active class from all options
+        document.querySelectorAll(".settings-option").forEach((option) => {
+          option.classList.remove("active");
+        });
+
+        // Show selected tab content
+        document
+          .getElementById(tabName + "Settings")
+          .classList.remove("hidden");
+
+        // Add active class to selected option
+        event.target.classList.add("active");
+      }
+
+      function loadSettingsToUI() {
+        // General Settings
+        document.getElementById("languageSelect").value = settings.language;
+        document.getElementById("autoSaveToggle").checked = settings.autoSave;
+        document.getElementById("onlineCountToggle").checked =
+          settings.showOnlineCount;
+
+        // Appearance Settings
+        document.getElementById("darkModeToggle").checked = settings.darkMode;
+        document.getElementById("fontSizeSlider").value = settings.fontSize;
+
+        // Wall Settings
+        document.getElementById("defaultWidthInput").value =
+          settings.defaultWidth;
+        document.getElementById("defaultHeightInput").value =
+          settings.defaultHeight;
+        document.getElementById("autoExpandToggle").checked =
+          settings.autoExpand;
+        document.getElementById("expansionAmountSlider").value =
+          settings.expansionAmount;
+        document.getElementById("zoomSpeedSlider").value = settings.zoomSpeed;
+
+        // Privacy Settings
+        document.getElementById("privateProfileToggle").checked =
+          settings.privateProfile;
+        document.getElementById("activityStatusToggle").checked =
+          settings.showActivityStatus;
+
+        // Notification Settings
+        document.getElementById("pushNotificationsToggle").checked =
+          settings.pushNotifications;
+        document.getElementById("emailNotificationsToggle").checked =
+          settings.emailNotifications;
+        document.getElementById("likesNotificationsToggle").checked =
+          settings.likesNotifications;
+        document.getElementById("commentsNotificationsToggle").checked =
+          settings.commentsNotifications;
+
+        // Account Settings
+        document.getElementById("usernameInput").value = settings.username;
+        document.getElementById("emailInput").value = settings.email;
+
+        // Update storage info
+        updateStorageInfo();
+      }
+
+      function saveSettings() {
+        // General Settings
+        settings.language = document.getElementById("languageSelect").value;
+        settings.autoSave = document.getElementById("autoSaveToggle").checked;
+        settings.showOnlineCount =
+          document.getElementById("onlineCountToggle").checked;
+
+        // Appearance Settings
+        settings.darkMode = document.getElementById("darkModeToggle").checked;
+        settings.fontSize = parseInt(
+          document.getElementById("fontSizeSlider").value
+        );
+
+        // Wall Settings
+        settings.defaultWidth = parseInt(
+          document.getElementById("defaultWidthInput").value
+        );
+        settings.defaultHeight = parseInt(
+          document.getElementById("defaultHeightInput").value
+        );
+        settings.autoExpand =
+          document.getElementById("autoExpandToggle").checked;
+        settings.expansionAmount = parseInt(
+          document.getElementById("expansionAmountSlider").value
+        );
+        settings.zoomSpeed = parseInt(
+          document.getElementById("zoomSpeedSlider").value
+        );
+
+        // Privacy Settings
+        settings.privateProfile = document.getElementById(
+          "privateProfileToggle"
+        ).checked;
+        settings.showActivityStatus = document.getElementById(
+          "activityStatusToggle"
+        ).checked;
+
+        // Notification Settings
+        settings.pushNotifications = document.getElementById(
+          "pushNotificationsToggle"
+        ).checked;
+        settings.emailNotifications = document.getElementById(
+          "emailNotificationsToggle"
+        ).checked;
+        settings.likesNotifications = document.getElementById(
+          "likesNotificationsToggle"
+        ).checked;
+        settings.commentsNotifications = document.getElementById(
+          "commentsNotificationsToggle"
+        ).checked;
+
+        // Account Settings
+        settings.username = document.getElementById("usernameInput").value;
+        settings.email = document.getElementById("emailInput").value;
+
+        // Save to localStorage
+        localStorage.setItem("electionWallSettings", JSON.stringify(settings));
+
+        // Apply settings
+        applySettings();
+
+        showToast("Settings saved successfully!");
+        closeSettingsModal();
+      }
+
+      function applySettings() {
+        // Apply dark mode
+        if (settings.darkMode) {
+          document.body.classList.add("dark-theme");
+        } else {
+          document.body.classList.remove("dark-theme");
+        }
+
+        // Apply online count visibility
+        const onlineCountElement = document.getElementById("onlineCount");
+        if (onlineCountElement) {
+          onlineCountElement.parentElement.style.display =
+            settings.showOnlineCount ? "flex" : "none";
+        }
+
+        // Update expansion amount
+        expansionAmount = settings.expansionAmount;
+
+        // Update zoom speed
+        zoomSpeed = settings.zoomSpeed;
+      }
+
+      function loadSettings() {
+        const savedSettings = localStorage.getItem("electionWallSettings");
+        if (savedSettings) {
+          settings = { ...settings, ...JSON.parse(savedSettings) };
+          applySettings();
+        }
+      }
+
+      // Settings helper functions
+      function setWallTheme(theme) {
+        settings.wallTheme = theme;
+        const themes = {
+          "light-blue":
+            "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 50%, #93c5fd 100%)",
+          "light-purple":
+            "linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 50%, #d8b4fe 100%)",
+          "light-green":
+            "linear-gradient(135deg, #dcfce7 0%, #bbf7d0 50%, #86efac 100%)",
+          "light-pink":
+            "linear-gradient(135deg, #fce7f3 0%, #fbcfe8 50%, #f9a8d4 100%)",
+          "light-yellow":
+            "linear-gradient(135deg, #fefce8 0%, #fef3c7 50%, #fde047 100%)",
+          "light-gray":
+            "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%)",
+          "dark-blue":
+            "linear-gradient(135deg, #1e3a8a 0%, #1e1b4b 50%, #312e81 100%)",
+          "dark-purple":
+            "linear-gradient(135deg, #581c87 0%, #6b21a8 50%, #7c3aed 100%)",
+          "dark-green":
+            "linear-gradient(135deg, #14532d 0%, #166534 50%, #15803d 100%)",
+        };
+
+        canvas.style.background = themes[theme];
+        showToast("Wall theme updated");
+      }
+
+      function updateFontSize(value) {
+        settings.fontSize = value;
+        document.documentElement.style.fontSize = `${value}px`;
+      }
+
+      function updateExpansionAmount(value) {
+        settings.expansionAmount = parseInt(value);
+        expansionAmount = settings.expansionAmount;
+      }
+
+      function updateZoomSpeed(value) {
+        settings.zoomSpeed = parseInt(value);
+        zoomSpeed = settings.zoomSpeed;
+      }
+
+      function clearCache() {
+        localStorage.removeItem("electionWallPosts");
+        showToast("Cache cleared successfully!");
+      }
+
+      function downloadData() {
+        const dataStr = JSON.stringify(postsData, null, 2);
+        const dataUri =
+          "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
+
+        const exportFileDefaultName = "election-wall-data.json";
+
+        const linkElement = document.createElement("a");
+        linkElement.setAttribute("href", dataUri);
+        linkElement.setAttribute("download", exportFileDefaultName);
+        linkElement.click();
+
+        showToast("Data download started");
+      }
+
+      function updateStorageInfo() {
+        // Calculate storage usage
+        const postsSize = JSON.stringify(postsData).length;
+        const imageStorage = Math.round((postsSize * 0.7) / 1024); // Approximate
+        const textStorage = Math.round((postsSize * 0.3) / 1024); // Approximate
+        const cacheStorage = 0.5; // MB
+        const totalStorage = imageStorage + textStorage + cacheStorage;
+        const totalStoragePercent = Math.round((totalStorage / 5120) * 100); // 5GB = 5120MB
+
+        document.getElementById(
+          "imageStorage"
+        ).textContent = `${imageStorage} MB`;
+        document.getElementById(
+          "textStorage"
+        ).textContent = `${textStorage} MB`;
+        document.getElementById(
+          "cacheStorage"
+        ).textContent = `${cacheStorage} MB`;
+        document.getElementById(
+          "totalStorage"
+        ).textContent = `${totalStorage.toFixed(1)} MB / 5 GB`;
+        document.getElementById(
+          "storageBar"
+        ).style.width = `${totalStoragePercent}%`;
+      }
+
+      function checkForUpdates() {
+        showToast("You're using the latest version!");
+      }
+
+      function showTerms() {
+        showToast(
+          "Terms of Service: Be respectful to others. No hate speech or harassment."
+        );
+      }
+
+      function showPrivacyPolicy() {
+        showToast(
+          "Privacy Policy: Your data is stored securely and never shared with third parties."
+        );
+      }
+
+      function contactSupport() {
+        showToast("Support: support@electionwall.example.com");
+      }
+
+      // --- HEADER FUNCTIONS ---
+
+      function updateLiveTime() {
+        const now = new Date();
+        const hours = now.getHours();
+        const minutes = now.getMinutes();
+        const ampm = hours >= 12 ? "PM" : "AM";
+        const displayHours = hours % 12 || 12;
+        const timeString = `${displayHours}:${
+          minutes < 10 ? "0" : ""
+        }${minutes} ${ampm}`;
+
+        document.getElementById("liveTime").textContent = timeString;
+
+        const options = { year: "numeric", month: "long", day: "numeric" };
+        const dateString = now.toLocaleDateString(undefined, options);
+        document.getElementById("currentDate").textContent = dateString;
+      }
+
+      function updatePostCount() {
+        document.getElementById(
+          "postCount"
+        ).textContent = `${postsData.length} Posts`;
+      }
+
+      function updateOnlineCount() {
+        // Simulate changing online count
+        const count = 200 + Math.floor(Math.random() * 100);
+        document.getElementById("onlineCount").textContent = `${count} Online`;
+      }
+
+      // --- HELPER FUNCTIONS ---
+      function formatDate(date) {
+        if (!date) return "";
+
+        const postDate = new Date(date);
+        const now = new Date();
+        const diff = now - postDate;
+
+        // If less than a day, show time ago
+        if (diff < 86400000) {
+          const hours = Math.floor(diff / 3600000);
+          if (hours < 1) {
+            const minutes = Math.floor(diff / 60000);
+            return minutes < 1 ? "Just now" : `${minutes}m ago`;
+          }
+          return `${hours}h ago`;
+        }
+
+        // Otherwise show date
+        return postDate.toLocaleDateString();
+      }
+
+      // Show toast notification
+      function showToast(message) {
+        const toast = document.createElement("div");
+        toast.className = "toast";
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        // Show the toast
+        setTimeout(() => {
+          toast.classList.add("show");
+        }, 10);
+
+        // Hide after 3 seconds
+        setTimeout(() => {
+          toast.classList.remove("show");
+          setTimeout(() => {
+            toast.remove();
+          }, 300);
+        }, 3000);
+      }
+
+      // --- INITIALIZATION ---
+      document.addEventListener("DOMContentLoaded", function () {
+        // Load settings from localStorage
+        loadSettings();
+
+        // Set up scroll event listener for infinite canvas
+        canvasContainer.addEventListener("scroll", handleScroll);
+
+        // Set up wheel event for zoom
+        canvasContainer.addEventListener("wheel", handleWheel);
+
+        // Load posts from localStorage
+        const savedPosts = localStorage.getItem("electionWallPosts");
+        if (savedPosts) {
+          postsData = JSON.parse(savedPosts);
+          renderPosts();
+        }
+
+        // Update UI elements
+        updatePostCount();
+        updateLiveTime();
+        updateOnlineCount();
+
+        // Update time every minute
+        setInterval(updateLiveTime, 60000);
+
+        // Update online count every 30 seconds
+        setInterval(updateOnlineCount, 30000);
+
+        // Center the canvas initially
+        setTimeout(() => {
+          canvasContainer.scrollTo({
+            left: (canvasWidth - canvasContainer.clientWidth) / 2,
+            top: (canvasHeight - canvasContainer.clientHeight) / 2,
+            behavior: "smooth",
+          });
+        }, 100);
+
+        // Save posts to localStorage when changed
+        window.addEventListener("beforeunload", () => {
+          localStorage.setItem("electionWallPosts", JSON.stringify(postsData));
+        });
+      });
+    </script>
+  </body>
+</html>
